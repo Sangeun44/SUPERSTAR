@@ -1,0 +1,44 @@
+{
+  "scripts": {
+    "start": "webpack-dev-server --hot --inline",
+    "build": "webpack"
+  },
+  "devDependencies": {
+    "@types/dat-gui": "^0.6.3",
+    "@types/gl-matrix": "^2.4.0",
+    "@types/node": "^9.6.5",
+    "@types/webgl2": "0.0.2",
+    "ts-loader": "^3.2.0",
+    "typescript": "^2.6.2",
+    "webpack": "^3.10.0",
+    "webpack-dev-server": "^2.10.1",
+    "webpack-glsl-loader": "^1.0.1"
+  },
+  "dependencies": {
+    "3d-view-controls": "^2.2.0",
+    "@pioug/MidiConvert": "^3.0.0-beta.9",
+    "@types/lodash": "^4.14.104",
+    "dat-gui": "^0.5.0",
+    "file-system": "^2.2.2",
+    "gl-matrix": "^2.4.0",
+    "json-parser": "^1.1.5",
+    "l-systems": "^1.0.0",
+    "lodash": "^4.17.5",
+    "midi-file-parser": "^1.0.0",
+    "midi-json-parser": "^4.2.15",
+    "midi-parser-js": "^2.1.3",
+    "midi-player-js": "^2.0.3",
+    "midifile": "^1.0.4",
+    "midiplayer": "^1.0.0",
+    "p5": "^0.6.1",
+    "parse-json": "^4.0.0",
+    "quaternion": "^2.0.0",
+    "read-file": "^0.2.0",
+    "stats-js": "^1.0.0-alpha1",
+    "three": "^0.92.0",
+    "tone": "^0.12.80",
+    "ts-fs-promise": "^1.0.4",
+    "web-audio-beat-detector": "^6.0.35",
+    "webgl-obj-loader": "^1.1.3"
+  }
+}
