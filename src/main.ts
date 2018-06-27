@@ -3,9 +3,18 @@ import * as Stats from 'stats-js';
 import * as DAT from 'dat-gui';
 import * as fs from 'fs';
 
+//event
+const event: CustomEvent & { dataTransfer?: any } =
+    new CustomEvent("name", { bubbles: true, cancelable: true });
+
+//audio
+import {Audio} from 'three';
+import Analyser from './Analyser';
+
+//geometry
 import Mesh from './geometry/Mesh';
 import Track from './geometry/Track';
-import Icosphere from './geometry/Icosphere';
+// import Icosphere from './geometry/Icosphere';
 import Square from './geometry/Square';
 import Background from './geometry/Background';
 import Cube from './geometry/Cube';
@@ -19,13 +28,25 @@ import ShaderProgram, { Shader } from './rendering/gl/ShaderProgram';
 
 import Button from './Button';
 
-declare var amp: any;
-declare var fft: any;
-declare var peak: any;
+//audio variables
+let audioFile: undefined;
+let audioCtx: AudioContext;
+let audioSrc: AudioBufferSourceNode;
+let audioBuf: AudioBuffer;
+let analyserNode: AnalyserNode;
+let delay: DelayNode;
+let gain: GainNode;
 
-//global dead line
-let checkLine1: number;
-let checkLine2: number;
+let generator: Analyser;
+let playing: boolean = false;
+let paused: boolean = false;
+let started: boolean = false;
+let startTime: number = new Date().getTime();
+let loaded: boolean = false; 
+
+let lastVol = 50;
+
+let song: any; 
 
 const parseJson = require('parse-json');
 let jsonFile: string; //jsonFile name
@@ -36,7 +57,6 @@ let buttonNum = 0;
 
 let points = 0;
 let health = 100;
-let startTime = 0;
 let epsilon = 0.5;
 
 let startTick = 0;
@@ -45,16 +65,11 @@ let tickFrame = 0;
 
 let keyBoard = Array<Mesh>();
 let track: Track;
-let gameDiff: string;
-let startGame = false;
-let loaded = false;
-let parse = false;
+
 let bpm = 0;
-let tempo = 0;
 
 let play = 0;
 //shapes
-let cube: Cube;
 let square: Square;
 let background: Background;
 
@@ -113,7 +128,6 @@ var JukeBox: AudioContext;
 var source, sourceJS;
 var analyser: AnalyserNode;
 var bufferLength: number;
-var buffer;
 var array: Uint8Array;
 var heightsArray: Uint8Array;
 
@@ -122,7 +136,10 @@ var heightsArray: Uint8Array;
 const controls = {
   Difficulty: "easy",
   Song: "Shooting Stars",
-  'Load Scene': loadScene // A function pointer, essentially
+  Health: 100,
+  Score: 0,
+  'Play/Pause': playPause,
+  'Load Song': loadScene // A function pointer, essentially
 };
 
 function play_music() {
@@ -180,6 +197,31 @@ function play_music() {
     });
 }
 
+function createAndConnectAudioBuffer() {
+  // create the source buffer
+  audioSrc = audioCtx.createBufferSource();
+  // connect source and analyser
+  audioSrc.connect(analyserNode);
+  analyserNode.connect(audioCtx.destination);
+}
+
+function setupAudio() {
+  //if song is playing, stop buffer and close
+  if(started) {
+    audioSrc.stop();
+    audioCtx.close();
+  }
+
+
+
+  
+}
+
+function playPause() {
+
+}
+
+//initial visuals
 function loadVisuals() {
   console.log("load visualization");
   var longboiStr = readTextFile('./src/resources/obj/longboi.obj');
@@ -212,9 +254,8 @@ function loadVisuals() {
   longboi7 = new Mesh(longboiStr, vec3.fromValues(0, 0, 0));
   longboi7.translateVertices(vec3.fromValues(5, -5,-35));
   longboi7.create();
-
-
 }
+
 function loadScene() {
   console.log("load scene");
   //Mario 
@@ -373,8 +414,7 @@ function loadButtonsHard() {
   keyBoard.push(buttonA, buttonS, buttonD, buttonF, buttonJ, buttonK, buttonL, buttonP);
 }
 
-//read the JSON file determined by the user
-//currntly doing a test midi json
+//read the JSON file determined by the user -- currntly doing a test midi json
 async function parseJSON() {
   console.log("parse the json file");
 
@@ -755,14 +795,17 @@ function main() {
   stats.setMode(0);
   stats.domElement.style.position = 'absolute';
   stats.domElement.style.left = '0px';
-  stats.domElement.style.top = '0px';
+  stats.domElement.style.bottom = '0px';
   document.body.appendChild(stats.domElement);
 
   // Add controls to the gui
   const gui = new DAT.GUI();
   gui.add(controls, 'Difficulty', ['easy', 'hard']);
   gui.add(controls, 'Song', ['Shooting Stars', 'Merry Go Round of Life', 'Last Surprise', 'Run', 'Running in the 90s', 'Resonance', 'Heartache', 'Again', 'Cheerup', 'Megalovania']);
-  gui.add(controls, 'Load Scene');
+  gui.add(controls, 'Play/Pause');
+  gui.add(controls, 'Load Song');
+  gui.add(controls, 'Health', 0, 100).listen();
+  gui.add(controls, 'Score').listen();
 
   // get canvas and webgl context
   const canvas = <HTMLCanvasElement>document.getElementById('canvas');
@@ -841,12 +884,12 @@ function main() {
     var timeSinceStartSec = timeSinceStart / 1000;
     //console.log("time counting: " + timeSinceStartSec);
 
-    if (!startGame && controls.Difficulty == "easy") {
+    if (!started && controls.Difficulty == "easy") {
       // console.log("load easy mesh buttons");
       //load easy mesh buttons
       loadButtonsEasy();
       loaded = true;
-    } else if (!startGame && controls.Difficulty == "hard") {
+    } else if (!started && controls.Difficulty == "hard") {
       //load 
       //console.log("load hard mesh buttons");
       loadButtonsHard();
@@ -867,8 +910,8 @@ function main() {
     let base_color = vec4.fromValues(200 / 255, 60 / 255, 200 / 255, 1);
 
     //mario
-    lambert.setGeometryColor(base_color);
-    renderer.render(camera, lambert, [mario]);
+    // lambert.setGeometryColor(base_color);
+    // renderer.render(camera, lambert, [mario]);
     
     let background_col = vec4.fromValues(200 / 255, 60 / 255, 200 / 255, 1);
     
@@ -893,10 +936,10 @@ function main() {
     tip_lambert.setGeometryColor(base_color);
 
     //user has not started game
-    if (!startGame && controls.Difficulty == "easy") {
+    if (!started && controls.Difficulty == "easy") {
       button_lambert.setGeometryColor(base_color);
       renderer.render(camera, button_lambert, [buttonS, buttonD, buttonF, buttonK, buttonJ, buttonL]);
-    } else if (!startGame && controls.Difficulty == "hard") {
+    } else if (!started && controls.Difficulty == "hard") {
       button_lambert.setGeometryColor(base_color);
       renderer.render(camera, button_lambert, [buttonA, buttonS, buttonD, buttonF, buttonK, buttonJ, buttonL, buttonP]);
     }
@@ -930,12 +973,12 @@ function main() {
     // }
     //user starts game
     console.log(buttonNum);
-    if (startGame) {
+    if (started) {
       count++;
       var d = bpm % tickFrame;
       long_lambert.setPressed(d);
       console.log("d" + d);
-      //if (startGame && buttons.length > 50) {
+      //if (started && buttons.length > 50) {
       //render track
       base_color = vec4.fromValues(65 / 255, 105 / 255, 225 / 255, 1);
       track_lambert.setGeometryColor(base_color);
@@ -1076,7 +1119,7 @@ function main() {
           if (health <= 0) {
             console.log("health IS zero");
             document.getElementById("game").innerHTML = "YOU LOSE!";
-            startGame = false;
+            started = false;
             JukeBox.close();
           }
           buttons.shift();
@@ -1232,6 +1275,11 @@ function main() {
   //listen to key press
   window.addEventListener('keydown', keyPressed, false);
   window.addEventListener('keyup', keyReleased, false);
+  
+  // //drag and drop
+  // window.addEventListener("dragenter", dragenter, false);  
+  // window.addEventListener("dragover", dragover, false);
+  // window.addEventListener("drop", drop, false);
 
   renderer.setSize(window.innerWidth, window.innerHeight);
   camera.setAspectRatio(window.innerWidth / window.innerHeight);
@@ -1243,6 +1291,41 @@ function main() {
 
 main();
 
+function startGame() {
+  if (play == 0) {
+    //window.setTimeout(parseJSON(), 100000);
+    parseJSON();
+    // play_music();
+    //loadTrack();
+    window.setTimeout(play_music(), 100000);
+    // window.setTimeout(loadTrack(), 10000);
+    if (controls.Difficulty == "easy") {
+      epsilon = .2;
+    }
+    else if (controls.Difficulty == "hard") {
+      epsilon = .4;
+    }
+
+    // checkLine1 = 0 - epsilon;
+    // checkLine2 = 0 + epsilon;
+
+    var d = Date.now();
+    startTime = d;
+    playing = true;
+    started = true;
+
+    //display status
+    document.getElementById("game").innerHTML = "In progress: " + controls.Song;
+    document.getElementById("health").innerHTML = "Health: " + health;
+    document.getElementById("points").innerHTML = "Score: " + points;
+  }
+
+  document.getElementById('visualizerInfo').style.visibility = "hidden";
+
+  play++;
+
+}
+// function drop(event: file)
 function keyReleased(event: KeyboardEvent) {
   switch (event.keyCode) {
     case 65:
@@ -1315,43 +1398,35 @@ function keyPressed(event: KeyboardEvent) {
       downP = true;
       break;
     case 32:
-      //space bar
-      //pause
-      startGame = false;
-      break;
+      // //space bar
+      // //pause
+      // startGame = false;
+      // break;
     case 86:
-      if (play == 0) {
-        //window.setTimeout(parseJSON(), 100000);
-        parseJSON();
-        // play_music();
-        //loadTrack();
-        window.setTimeout(play_music(), 100000);
-        // window.setTimeout(loadTrack(), 10000);
-        if (controls.Difficulty == "easy") {
-          epsilon = .2;
-        }
-        else if (controls.Difficulty == "hard") {
-          epsilon = .2;
-        }
-
-        // checkLine1 = 0 - epsilon;
-        // checkLine2 = 0 + epsilon;
-
-        var d = Date.now();
-        startTime = d;
-        startGame = true;
-
-        //display status
-        document.getElementById("game").innerHTML = "In progress: " + controls.Song;
-        document.getElementById("health").innerHTML = "Health: " + health;
-        document.getElementById("points").innerHTML = "Score: " + points;
-      }
-
-      document.getElementById('visualizerInfo').style.visibility = "hidden";
-
-      play++;
-
+      //Player starts game for the first time
+      startGame();
       break;
   }
+  function dragenter(e: Event) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+
+  function dragover(e: Event) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+
+  // function drop(e: Event) {
+  //   e.stopPropagation();
+  //   e.preventDefault();
+  //   if (audioFile == undefined) {
+  //     setupAudio(e.dataTransfer.files[0]);
+  //   } else {
+  //     // stop current visualization and load new song
+  //     audioSourceBuffer.stop();
+  //     setupAudio(e.dataTransfer.files[0]);
+  //   }
+  // }
 }
 

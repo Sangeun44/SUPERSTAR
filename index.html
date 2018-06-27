@@ -11,6 +11,12 @@
           width: 100%;
           height: 100%;
         }
+
+        /* #drop_zone {
+         border: 5px solid blue;
+         width:  200px;
+         height: 100px;
+        } */
       </style>
       
   </head>
@@ -24,43 +30,40 @@
       font: 300 20px Arial, Gadget, sans-serif;">
       </label>
       
-      <label id= "health"
+      <!-- <label id= "health"
       style="position:fixed; 
       text-align: center; 
       color:white; 
       margin:200px;
       margin-top:500px;
       font: 300 20px Arial, Gadget, sans-serif;">
-      </label>
-
-      <label id= "points"
-      style="position:fixed; 
-      text-align: center; 
-      color:white; 
-      margin:200px;
-      margin-top:450px;
-      font: 300 20px Arial, Gadget, sans-serif;">
-      </label>
+      </label> -->
     
       <label id="visualizerInfo" 
       style="position:fixed; 
-      text-align: center; 
       color:white; 
-      margin:500px;
-      margin-top:500px;
+      margin:10px;
+      margin-top:100px;
       font: 300 20px Arial, Gadget, sans-serif;">
       CHOOSE A SONG<br>
       CHOOSE A DIFFICULTY <br>
       For Easy: S, D, F, J, K, L <br>
       For Hard: A, S, D, F, J, K, L, ; <br>
       PRESS 'V' TO START
-    </label>
+      </label>
+
+    <label id="guide" 
+            style="position:fixed;color:white; margin:10px;font: 400 14px Verdana, Arial, sans-serif; text-shadow: gray 0 0 0;">
+            Drag and drop a mp3 file!</label>
 
     <div id="content">
-      <input type="file" id="thefile" accept="audio/*" />
       <canvas id="canvas"></canvas>
       <audio id="audio" controls></audio>
     </div>
+
+    <!-- <div id="drop_zone" ondrop="dropHandler(event);">
+    <p>Drag one or more files to this Drop Zone ...</p>
+    </div> -->
 
   <script type="text/javascript" src="dist/bundle.js"></script>
   </body>

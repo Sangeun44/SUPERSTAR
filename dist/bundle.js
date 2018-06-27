@@ -3431,6 +3431,12 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 
 
 
+//event
+const event = new CustomEvent("name", { bubbles: true, cancelable: true });
+//geometry
+
+
+// import Icosphere from './geometry/Icosphere';
 
 
 
@@ -3439,11 +3445,22 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 
 
 
-
-
-//global dead line
-let checkLine1;
-let checkLine2;
+//audio variables
+let audioFile;
+let audioCtx;
+let audioSrc;
+let audioBuf;
+let analyserNode;
+let delay;
+let gain;
+let generator;
+let playing = false;
+let paused = false;
+let started = false;
+let startTime = new Date().getTime();
+let loaded = false;
+let lastVol = 50;
+let song;
 const parseJson = __webpack_require__(70);
 let jsonFile; //jsonFile name
 //list of buttons to create
@@ -3451,22 +3468,15 @@ let buttons = Array();
 let buttonNum = 0;
 let points = 0;
 let health = 100;
-let startTime = 0;
 let epsilon = 0.5;
 let startTick = 0;
 let endTick = 0;
 let tickFrame = 0;
 let keyBoard = Array();
 let track;
-let gameDiff;
-let startGame = false;
-let loaded = false;
-let parse = false;
 let bpm = 0;
-let tempo = 0;
 let play = 0;
 //shapes
-let cube;
 let square;
 let background;
 //time
@@ -3512,7 +3522,6 @@ var JukeBox;
 var source, sourceJS;
 var analyser;
 var bufferLength;
-var buffer;
 var array;
 var heightsArray;
 // Define an object with application parameters and button callbacks
@@ -3520,6 +3529,7 @@ var heightsArray;
 const controls = {
     Difficulty: "easy",
     Song: "Shooting Stars",
+    Score: 0,
     'Load Scene': loadScene // A function pointer, essentially
 };
 function play_music() {
@@ -3566,6 +3576,20 @@ function play_music() {
             console.log("length: " + heightsArray.length);
         }
     });
+}
+function createAndConnectAudioBuffer() {
+    // create the source buffer
+    audioSrc = audioCtx.createBufferSource();
+    // connect source and analyser
+    audioSrc.connect(analyserNode);
+    analyserNode.connect(audioCtx.destination);
+}
+function setupAudio() {
+    //if song is playing, stop buffer and close
+    if (started) {
+        audioSrc.stop();
+        audioCtx.close();
+    }
 }
 function loadVisuals() {
     console.log("load visualization");
@@ -4096,7 +4120,7 @@ function main() {
     stats.setMode(0);
     stats.domElement.style.position = 'absolute';
     stats.domElement.style.left = '0px';
-    stats.domElement.style.top = '0px';
+    stats.domElement.style.bottom = '0px';
     document.body.appendChild(stats.domElement);
     // Add controls to the gui
     const gui = new __WEBPACK_IMPORTED_MODULE_2_dat_gui__["GUI"]();
@@ -4166,13 +4190,13 @@ function main() {
         var timeSinceStart = timeRightNow - startTime;
         var timeSinceStartSec = timeSinceStart / 1000;
         //console.log("time counting: " + timeSinceStartSec);
-        if (!startGame && controls.Difficulty == "easy") {
+        if (!started && controls.Difficulty == "easy") {
             // console.log("load easy mesh buttons");
             //load easy mesh buttons
             loadButtonsEasy();
             loaded = true;
         }
-        else if (!startGame && controls.Difficulty == "hard") {
+        else if (!started && controls.Difficulty == "hard") {
             //load 
             //console.log("load hard mesh buttons");
             loadButtonsHard();
@@ -4188,8 +4212,8 @@ function main() {
         renderer.clear();
         let base_color = __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["c" /* vec4 */].fromValues(200 / 255, 60 / 255, 200 / 255, 1);
         //mario
-        lambert.setGeometryColor(base_color);
-        renderer.render(camera, lambert, [mario]);
+        // lambert.setGeometryColor(base_color);
+        // renderer.render(camera, lambert, [mario]);
         let background_col = __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["c" /* vec4 */].fromValues(200 / 255, 60 / 255, 200 / 255, 1);
         //background
         lambert.setGeometryColor(background_col);
@@ -4208,11 +4232,11 @@ function main() {
         base_color = __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["c" /* vec4 */].fromValues(255 / 255, 160 / 255, 200 / 255, 1);
         tip_lambert.setGeometryColor(base_color);
         //user has not started game
-        if (!startGame && controls.Difficulty == "easy") {
+        if (!started && controls.Difficulty == "easy") {
             button_lambert.setGeometryColor(base_color);
             renderer.render(camera, button_lambert, [buttonS, buttonD, buttonF, buttonK, buttonJ, buttonL]);
         }
-        else if (!startGame && controls.Difficulty == "hard") {
+        else if (!started && controls.Difficulty == "hard") {
             button_lambert.setGeometryColor(base_color);
             renderer.render(camera, button_lambert, [buttonA, buttonS, buttonD, buttonF, buttonK, buttonJ, buttonL, buttonP]);
         }
@@ -4241,12 +4265,12 @@ function main() {
         // }
         //user starts game
         console.log(buttonNum);
-        if (startGame) {
+        if (started) {
             count++;
             var d = bpm % tickFrame;
             long_lambert.setPressed(d);
             console.log("d" + d);
-            //if (startGame && buttons.length > 50) {
+            //if (started && buttons.length > 50) {
             //render track
             base_color = __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["c" /* vec4 */].fromValues(65 / 255, 105 / 255, 225 / 255, 1);
             track_lambert.setGeometryColor(base_color);
@@ -4385,7 +4409,7 @@ function main() {
                     if (health <= 0) {
                         console.log("health IS zero");
                         document.getElementById("game").innerHTML = "YOU LOSE!";
-                        startGame = false;
+                        started = false;
                         JukeBox.close();
                     }
                     buttons.shift();
@@ -4543,6 +4567,10 @@ function main() {
     //listen to key press
     window.addEventListener('keydown', keyPressed, false);
     window.addEventListener('keyup', keyReleased, false);
+    // //drag and drop
+    // window.addEventListener("dragenter", dragenter, false);  
+    // window.addEventListener("dragover", dragover, false);
+    // window.addEventListener("drop", drop, false);
     renderer.setSize(window.innerWidth, window.innerHeight);
     camera.setAspectRatio(window.innerWidth / window.innerHeight);
     camera.updateProjectionMatrix();
@@ -4550,6 +4578,35 @@ function main() {
     tick();
 }
 main();
+function startGame() {
+    if (play == 0) {
+        //window.setTimeout(parseJSON(), 100000);
+        parseJSON();
+        // play_music();
+        //loadTrack();
+        window.setTimeout(play_music(), 100000);
+        // window.setTimeout(loadTrack(), 10000);
+        if (controls.Difficulty == "easy") {
+            epsilon = .2;
+        }
+        else if (controls.Difficulty == "hard") {
+            epsilon = .4;
+        }
+        // checkLine1 = 0 - epsilon;
+        // checkLine2 = 0 + epsilon;
+        var d = Date.now();
+        startTime = d;
+        playing = true;
+        started = true;
+        //display status
+        document.getElementById("game").innerHTML = "In progress: " + controls.Song;
+        document.getElementById("health").innerHTML = "Health: " + health;
+        document.getElementById("points").innerHTML = "Score: " + points;
+    }
+    document.getElementById('visualizerInfo').style.visibility = "hidden";
+    play++;
+}
+// function drop(event: file)
 function keyReleased(event) {
     switch (event.keyCode) {
         case 65:
@@ -4621,38 +4678,34 @@ function keyPressed(event) {
             downP = true;
             break;
         case 32:
-            //space bar
-            //pause
-            startGame = false;
-            break;
+        // //space bar
+        // //pause
+        // startGame = false;
+        // break;
         case 86:
-            if (play == 0) {
-                //window.setTimeout(parseJSON(), 100000);
-                parseJSON();
-                // play_music();
-                //loadTrack();
-                window.setTimeout(play_music(), 100000);
-                // window.setTimeout(loadTrack(), 10000);
-                if (controls.Difficulty == "easy") {
-                    epsilon = .2;
-                }
-                else if (controls.Difficulty == "hard") {
-                    epsilon = .2;
-                }
-                // checkLine1 = 0 - epsilon;
-                // checkLine2 = 0 + epsilon;
-                var d = Date.now();
-                startTime = d;
-                startGame = true;
-                //display status
-                document.getElementById("game").innerHTML = "In progress: " + controls.Song;
-                document.getElementById("health").innerHTML = "Health: " + health;
-                document.getElementById("points").innerHTML = "Score: " + points;
-            }
-            document.getElementById('visualizerInfo').style.visibility = "hidden";
-            play++;
+            //Player starts game for the first time
+            startGame();
             break;
     }
+    function dragenter(e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    function dragover(e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    // function drop(e: Event) {
+    //   e.stopPropagation();
+    //   e.preventDefault();
+    //   if (audioFile == undefined) {
+    //     setupAudio(e.dataTransfer.files[0]);
+    //   } else {
+    //     // stop current visualization and load new song
+    //     audioSourceBuffer.stop();
+    //     setupAudio(e.dataTransfer.files[0]);
+    //   }
+    // }
 }
 
 
